@@ -193,7 +193,7 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
           <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4">
             <p className="font-bold text-slate-950">Consulente / visitante</p>
             <p className="mt-1 text-sm leading-6 text-slate-700">
-              O objetivo é entender se a chegada, o agendamento, as orientações, a espera e o acolhimento estão claros para quem vem buscar atendimento.
+              As perguntas foram adaptadas para não tratar de rotinas internas da casa. O objetivo é entender se a chegada, as orientações e o acolhimento estão claros para quem vem buscar atendimento.
             </p>
           </div>
         ) : (
