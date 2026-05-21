@@ -15,9 +15,10 @@ type QuestionCardProps = {
   value: AnswerDraft;
   onChange: (next: AnswerDraft) => void;
   index: number;
+  error?: string;
 };
 
-export function QuestionCard({ question, value, onChange, index }: QuestionCardProps) {
+export function QuestionCard({ question, value, onChange, index, error }: QuestionCardProps) {
   function toggleOption(optionValue: string) {
     if (question.type === "single") {
       onChange({ ...value, selectedOptions: [optionValue] });
@@ -33,7 +34,12 @@ export function QuestionCard({ question, value, onChange, index }: QuestionCardP
   }
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section
+      id={`question-${question.key}`}
+      className={`rounded-3xl border bg-white p-5 shadow-sm ${
+        error ? "border-red-300 ring-4 ring-red-50" : "border-slate-200"
+      }`}
+    >
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-700">
@@ -46,6 +52,12 @@ export function QuestionCard({ question, value, onChange, index }: QuestionCardP
           {question.type === "single" ? "Escolha única" : "Múltipla escolha"}
         </span>
       </div>
+
+      {error ? (
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {error}
+        </div>
+      ) : null}
 
       <div className="grid gap-2">
         {question.options.map((option) => {

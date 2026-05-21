@@ -1,8 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getQuestionsForRoles, getRoleLabel, roles } from "@/lib/surveyConfig";
+import {
+  CONSULENTE_ROLE_KEY,
+  getQuestionsForRoles,
+  getRoleLabel,
+  roles,
+} from "@/lib/surveyConfig";
 import { QuestionCard, type AnswerDraft } from "@/components/QuestionCard";
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
@@ -11,9 +16,16 @@ type SurveyFormProps = {
   mode?: "internal" | "consulente";
 };
 
+function scrollToElement(id: string) {
+  window.setTimeout(() => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 50);
+}
+
 export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
   const router = useRouter();
-  const initialRoles = mode === "consulente" ? ["consulente"] : [];
+  const isConsulenteMode = mode === "consulente";
+  const initialRoles = isConsulenteMode ? [CONSULENTE_ROLE_KEY] : [];
   const [selectedRoles, setSelectedRoles] = useState<string[]>(initialRoles);
   const [identified, setIdentified] = useState(false);
   const [name, setName] = useState("");
@@ -22,24 +34,28 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
   const [answers, setAnswers] = useState<Record<string, AnswerDraft>>({});
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [missingQuestionKey, setMissingQuestionKey] = useState<string | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   const availableRoles = useMemo(() => {
-    if (mode === "consulente") {
-      return roles.filter((role) => role.key === "consulente");
+    if (isConsulenteMode) {
+      return roles.filter((role) => role.key === CONSULENTE_ROLE_KEY);
     }
-    return roles.filter((role) => role.key !== "consulente");
-  }, [mode]);
+    return roles.filter((role) => role.key !== CONSULENTE_ROLE_KEY);
+  }, [isConsulenteMode]);
 
   const questions = useMemo(() => getQuestionsForRoles(selectedRoles), [selectedRoles]);
 
   function toggleRole(roleKey: string) {
-    if (mode === "consulente") return;
+    if (isConsulenteMode) return;
     setSelectedRoles((current) => {
       if (current.includes(roleKey)) {
         return current.filter((item) => item !== roleKey);
       }
       return [...current, roleKey];
     });
+    setMissingQuestionKey(null);
+    setErrorMessage("");
   }
 
   function getAnswer(questionKey: string): AnswerDraft {
@@ -57,26 +73,46 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
 
   function updateAnswer(next: AnswerDraft) {
     setAnswers((current) => ({ ...current, [next.questionKey]: next }));
+    if (missingQuestionKey === next.questionKey && next.selectedOptions.length > 0) {
+      setMissingQuestionKey(null);
+      setErrorMessage("");
+    }
   }
 
-  async function submitSurvey() {
+  function validateBeforeSubmit(): boolean {
     setErrorMessage("");
+    setMissingQuestionKey(null);
 
     if (selectedRoles.length === 0) {
       setErrorMessage("Selecione pelo menos uma função/papel no TUCXA.");
-      return;
-    }
-
-    const missing = questions.find((question) => question.required && getAnswer(question.key).selectedOptions.length === 0);
-    if (missing) {
-      setErrorMessage(`Responda a pergunta obrigatória: ${missing.label}`);
-      return;
+      scrollToElement("survey-role-section");
+      return false;
     }
 
     if (identified && !name.trim()) {
       setErrorMessage("Informe seu nome ou escolha responder de forma anônima.");
-      return;
+      window.setTimeout(() => nameInputRef.current?.focus(), 50);
+      return false;
     }
+
+    const missing = questions.find((question) => {
+      if (!question.required) return false;
+      return getAnswer(question.key).selectedOptions.length === 0;
+    });
+
+    if (missing) {
+      setMissingQuestionKey(missing.key);
+      setErrorMessage(`Responda a pergunta obrigatória: ${missing.label}`);
+      scrollToElement(`question-${missing.key}`);
+      return false;
+    }
+
+    return true;
+  }
+
+  async function submitSurvey() {
+    if (status === "submitting") return;
+    if (!validateBeforeSubmit()) return;
 
     setStatus("submitting");
 
@@ -86,6 +122,8 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
       body: JSON.stringify({
         roleKeys: selectedRoles,
         roleLabels: selectedRoles.map(getRoleLabel),
+        roleKey: selectedRoles[0] ?? CONSULENTE_ROLE_KEY,
+        roleLabel: getRoleLabel(selectedRoles[0] ?? CONSULENTE_ROLE_KEY),
         identified,
         name,
         whatsapp,
@@ -106,74 +144,86 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
     router.push("/pesquisa/obrigado");
   }
 
+  const selectedRoleLabels = selectedRoles.map(getRoleLabel).join(", ");
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="rounded-[2rem] bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 p-6 text-white shadow-xl sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-200">Escuta TUCXA</p>
         <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">
-          Sua vivência pode ajudar a cuidar melhor da casa.
+          {isConsulenteMode
+            ? "Sua experiência pode ajudar a melhorar o acolhimento."
+            : "Sua vivência pode ajudar a cuidar melhor da casa."}
         </h1>
         <p className="mt-4 max-w-3xl text-base leading-7 text-slate-200">
-          Esta pesquisa foi criada para entender, com respeito e discrição, onde existem dúvidas,
-          retrabalhos, sobrecargas ou oportunidades de melhoria. Não é para apontar culpados: é para
-          apoiar a organização, a harmonia e o cuidado com as pessoas.
+          {isConsulenteMode
+            ? "Esta pesquisa foi criada para ouvir consulentes e visitantes, com respeito e discrição, sobre a chegada, a orientação, a espera e o acolhimento. Não compartilhe conteúdo pessoal ou espiritual: responda apenas sobre sua experiência com o processo."
+            : "Esta pesquisa foi criada para entender, com respeito e discrição, onde existem dúvidas, retrabalhos, sobrecargas ou oportunidades de melhoria. Não é para apontar culpados: é para apoiar a organização, a harmonia e o cuidado com as pessoas."}
         </p>
       </div>
 
       <div className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
         <h2 className="text-lg font-bold">Como responder</h2>
         <p className="mt-2 text-sm leading-6">
-          Primeiro selecione sua função/papel. Como a mesma pessoa pode ter mais de uma função, marque
-          todas as opções que representam sua realidade. Depois, o sistema mostrará as perguntas comuns e
-          também as perguntas específicas das funções escolhidas.
+          {isConsulenteMode
+            ? "Responda pensando apenas na sua experiência como consulente ou visitante: chegada, orientação, acolhimento, espera e clareza do processo. Todas as perguntas precisam ser respondidas, e os comentários são opcionais."
+            : "Primeiro selecione sua função/papel. Como a mesma pessoa pode ter mais de uma função, marque todas as opções que representam sua realidade. Depois, o sistema mostrará as perguntas comuns e também as perguntas específicas das funções escolhidas."}
         </p>
       </div>
 
-      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section id="survey-role-section" className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-700">Etapa 1</p>
             <h2 className="mt-1 text-xl font-bold text-slate-950">
-              Qual é sua função/papel no TUCXA?
+              {isConsulenteMode ? "Pesquisa para consulentes/visitantes" : "Qual é sua função/papel no TUCXA?"}
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              {mode === "consulente"
-                ? "Esta página é específica para consulentes/visitantes."
+              {isConsulenteMode
+                ? "Esta página é exclusiva para quem veio ao TUCXA como consulente, visitante ou buscou informações sobre atendimento."
                 : "Múltipla escolha: marque uma ou mais opções."}
             </p>
           </div>
           <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-            Múltipla escolha
+            {isConsulenteMode ? "Público específico" : "Múltipla escolha"}
           </span>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {availableRoles.map((role) => {
-            const checked = selectedRoles.includes(role.key);
-            return (
-              <label
-                key={role.key}
-                className={`cursor-pointer rounded-2xl border p-4 transition ${
-                  checked ? "border-amber-400 bg-amber-50" : "border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                <div className="flex gap-3">
-                  <input
-                    className="mt-1 h-4 w-4 accent-amber-700"
-                    type="checkbox"
-                    checked={checked}
-                    disabled={mode === "consulente"}
-                    onChange={() => toggleRole(role.key)}
-                  />
-                  <div>
-                    <p className="font-bold text-slate-900">{role.label}</p>
-                    <p className="mt-1 text-sm text-slate-600">{role.description}</p>
+        {isConsulenteMode ? (
+          <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4">
+            <p className="font-bold text-slate-950">Consulente / visitante</p>
+            <p className="mt-1 text-sm leading-6 text-slate-700">
+              As perguntas foram adaptadas para não tratar de rotinas internas da casa. O objetivo é entender se a chegada, as orientações e o acolhimento estão claros para quem vem buscar atendimento.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {availableRoles.map((role) => {
+              const checked = selectedRoles.includes(role.key);
+              return (
+                <label
+                  key={role.key}
+                  className={`cursor-pointer rounded-2xl border p-4 transition ${
+                    checked ? "border-amber-400 bg-amber-50" : "border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex gap-3">
+                    <input
+                      className="mt-1 h-4 w-4 accent-amber-700"
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleRole(role.key)}
+                    />
+                    <div>
+                      <p className="font-bold text-slate-900">{role.label}</p>
+                      <p className="mt-1 text-sm text-slate-600">{role.description}</p>
+                    </div>
                   </div>
-                </div>
-              </label>
-            );
-          })}
-        </div>
+                </label>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -214,6 +264,7 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
                 Nome
               </label>
               <input
+                ref={nameInputRef}
                 id="name"
                 className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
                 value={name}
@@ -250,9 +301,13 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-700">Etapa 3</p>
             <h2 className="mt-1 text-xl font-bold text-slate-950">Perguntas da pesquisa</h2>
             <p className="mt-1 text-sm text-slate-600">
-              As perguntas abaixo combinam uma base comum para todos com perguntas específicas para:
-              {" "}
-              <strong>{selectedRoles.map(getRoleLabel).join(", ")}</strong>.
+              {isConsulenteMode ? (
+                "Todas as perguntas abaixo precisam ser respondidas. Os comentários são opcionais e não devem expor assuntos pessoais ou espirituais sensíveis."
+              ) : (
+                <>
+                  As perguntas abaixo combinam uma base comum para todos com perguntas específicas para: <strong>{selectedRoleLabels}</strong>.
+                </>
+              )}
             </p>
           </div>
 
@@ -263,6 +318,7 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
               question={question}
               value={getAnswer(question.key)}
               onChange={updateAnswer}
+              error={missingQuestionKey === question.key ? "Responda esta pergunta para continuar." : undefined}
             />
           ))}
         </div>

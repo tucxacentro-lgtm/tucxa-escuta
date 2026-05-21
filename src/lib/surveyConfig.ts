@@ -23,6 +23,8 @@ export type SurveyRole = {
 };
 
 export const CAMPAIGN_KEY = "escuta-tucxa-2026";
+export const CONSULENTE_ROLE_KEY = "consulente";
+export const CONSULENTE_ROLE_LABEL = "Consulente / visitante";
 
 export const roles: SurveyRole[] = [
   {
@@ -68,9 +70,9 @@ export const roles: SurveyRole[] = [
     isInternal: true,
   },
   {
-    key: "consulente",
-    label: "Consulente / visitante",
-    description: "Experiência de chegada, acolhimento, orientações, espera e atendimento.",
+    key: CONSULENTE_ROLE_KEY,
+    label: CONSULENTE_ROLE_LABEL,
+    description: "Experiência de chegada, acolhimento, orientação, espera e atendimento.",
     isInternal: false,
   },
   {
@@ -83,7 +85,7 @@ export const roles: SurveyRole[] = [
 
 const option = (label: string): SurveyOption => ({ value: label, label });
 
-export const commonQuestions: SurveyQuestion[] = [
+export const internalCommonQuestions: SurveyQuestion[] = [
   {
     key: "tempo_vinculo",
     label: "Há quanto tempo você participa, ajuda ou frequenta o TUCXA?",
@@ -98,7 +100,6 @@ export const commonQuestions: SurveyQuestion[] = [
       "De 3 a 10 anos",
       "Mais de 10 anos",
       "Participo principalmente de eventos",
-      "Sou visitante/consulente",
     ].map(option),
   },
   {
@@ -225,6 +226,143 @@ export const commonQuestions: SurveyQuestion[] = [
       "Cadastro das pessoas",
       "Gestão de voluntários",
       "Ainda não sei",
+    ].map(option),
+  },
+];
+
+export const consulenteQuestions: SurveyQuestion[] = [
+  {
+    key: "consulente_primeira_vez",
+    label: "Esta foi sua primeira visita ao TUCXA?",
+    helper: "Escolha a opção que melhor representa sua experiência recente.",
+    type: "single",
+    required: true,
+    allowComment: true,
+    options: [
+      "Sim, foi minha primeira visita",
+      "Não, já estive no TUCXA outras vezes",
+      "Ainda não fui, estou buscando informações",
+      "Prefiro não responder",
+    ].map(option),
+  },
+  {
+    key: "consulente_como_soube",
+    label: "Como você ficou sabendo do TUCXA ou do atendimento?",
+    helper: "Esta resposta ajuda a entender como as pessoas chegam até a casa.",
+    type: "single",
+    required: true,
+    allowComment: true,
+    options: [
+      "Indicação de familiar ou amigo",
+      "WhatsApp",
+      "Rede social",
+      "Já conhecia a casa",
+      "Passei em frente / moro perto",
+      "Outro",
+      "Prefiro não responder",
+    ].map(option),
+  },
+  {
+    key: "consulente_info_antes",
+    label: "Antes de chegar, quais informações teriam ajudado você?",
+    helper: "Marque tudo que teria deixado a visita mais tranquila.",
+    type: "multiple",
+    required: true,
+    allowComment: true,
+    options: [
+      "Horários de funcionamento",
+      "Dia certo para atendimento a consulentes",
+      "Como funciona a chegada",
+      "Como funciona senha, ficha ou ordem de atendimento",
+      "Tempo aproximado de espera",
+      "Localização e entrada correta",
+      "O que pode ou não pode fazer dentro da casa",
+      "Não senti falta de informação antes de chegar",
+      "Outro",
+    ].map(option),
+  },
+  {
+    key: "consulente_chegada_clareza",
+    label: "Ao chegar, ficou claro o que você deveria fazer?",
+    helper: "Pense na orientação inicial, recepção, senha, ficha, espera e encaminhamento.",
+    type: "single",
+    required: true,
+    allowComment: true,
+    options: [
+      "Sim, ficou muito claro",
+      "Ficou claro, mas poderia ser mais simples",
+      "Tive algumas dúvidas",
+      "Fiquei inseguro(a) sobre o que fazer",
+      "Não se aplica / ainda não fui presencialmente",
+    ].map(option),
+  },
+  {
+    key: "consulente_acolhimento",
+    label: "Como você avalia o acolhimento inicial recebido?",
+    helper: "Não é avaliação de pessoas específicas; é para entender a experiência de chegada.",
+    type: "single",
+    required: true,
+    allowComment: true,
+    options: [
+      "Muito acolhedor e respeitoso",
+      "Bom, mas pode melhorar em alguns pontos",
+      "Regular",
+      "Não me senti bem orientado(a)",
+      "Não se aplica / ainda não fui presencialmente",
+      "Prefiro não responder",
+    ].map(option),
+  },
+  {
+    key: "consulente_espera",
+    label: "Durante a espera, o que poderia ajudar?",
+    helper: "Marque as opções que tornariam o momento mais tranquilo e organizado.",
+    type: "multiple",
+    required: true,
+    allowComment: true,
+    options: [
+      "Explicação simples sobre o fluxo do atendimento",
+      "Mais clareza sobre a ordem de chamada",
+      "Orientações gerais por escrito ou cartaz",
+      "Previsão aproximada de tempo de espera",
+      "Melhor sinalização dos espaços",
+      "Canal para tirar dúvidas gerais",
+      "Nada, a espera foi tranquila",
+      "Não se aplica / ainda não fui presencialmente",
+      "Outro",
+    ].map(option),
+  },
+  {
+    key: "consulente_depois_atendimento",
+    label: "Depois do atendimento, ficou claro se havia alguma orientação geral ou próximo passo?",
+    helper: "Não compartilhe conteúdo pessoal ou espiritual; responda apenas sobre a clareza do processo.",
+    type: "single",
+    required: true,
+    allowComment: true,
+    options: [
+      "Sim, ficou claro",
+      "Parcialmente",
+      "Não ficou claro",
+      "Não houve orientação ou próximo passo",
+      "Não se aplica / ainda não fui atendido(a)",
+      "Prefiro não responder",
+    ].map(option),
+  },
+  {
+    key: "consulente_melhoria_prioridade",
+    label: "O que mais tornaria a experiência do consulente mais tranquila?",
+    helper: "Escolha uma melhoria que, na sua visão, faria mais diferença.",
+    type: "single",
+    required: true,
+    allowComment: true,
+    options: [
+      "Informações antes da visita",
+      "Orientação mais clara na chegada",
+      "Melhor sinalização dentro da casa",
+      "Mais clareza sobre espera e ordem de atendimento",
+      "Página simples com orientações para consulentes",
+      "Canal para dúvidas gerais",
+      "A experiência já foi tranquila",
+      "Outro",
     ].map(option),
   },
 ];
@@ -509,59 +647,6 @@ export const roleQuestions: Record<string, SurveyQuestion[]> = {
       ].map(option),
     },
   ],
-  consulente: [
-    {
-      key: "consulente_experiencia_chegada",
-      label: "Como foi sua experiência de chegada e orientação?",
-      type: "single",
-      required: true,
-      allowComment: true,
-      options: [
-        "Muito clara e acolhedora",
-        "Clara, mas poderia melhorar",
-        "Tive algumas dúvidas",
-        "Fiquei inseguro(a) sobre o que fazer",
-        "Não sei avaliar",
-      ].map(option),
-    },
-    {
-      key: "consulente_info_previa",
-      label: "Que informação ajudaria antes de ir ao TUCXA?",
-      type: "multiple",
-      required: true,
-      allowComment: true,
-      options: [
-        "Horários",
-        "Como funciona a chegada",
-        "Regras básicas da casa",
-        "Tempo aproximado de espera",
-        "O que levar ou não levar",
-        "Como funciona a senha/ficha",
-        "Orientações após atendimento",
-        "Localização",
-        "Não precisei de informação adicional",
-        "Outro",
-      ].map(option),
-    },
-    {
-      key: "consulente_tranquilidade",
-      label: "O que poderia tornar a experiência do consulente mais tranquila?",
-      type: "multiple",
-      required: true,
-      allowComment: true,
-      options: [
-        "Explicação simples na chegada",
-        "Página com orientações",
-        "Melhor sinalização",
-        "Mais clareza sobre espera",
-        "Orientação após atendimento",
-        "Canal para dúvidas gerais",
-        "Acolhimento inicial",
-        "Não sei avaliar",
-        "Outro",
-      ].map(option),
-    },
-  ],
   outro: [
     {
       key: "outro_vinculo",
@@ -581,10 +666,24 @@ export const roleQuestions: Record<string, SurveyQuestion[]> = {
 };
 
 export function getQuestionsForRoles(roleKeys: string[]): SurveyQuestion[] {
-  const seen = new Set<string>();
-  const questions = [...commonQuestions];
+  const uniqueRoleKeys = Array.from(new Set(roleKeys));
 
-  for (const roleKey of roleKeys) {
+  if (uniqueRoleKeys.length === 1 && uniqueRoleKeys[0] === CONSULENTE_ROLE_KEY) {
+    return consulenteQuestions;
+  }
+
+  const seen = new Set<string>();
+  const questions: SurveyQuestion[] = [];
+
+  for (const question of internalCommonQuestions) {
+    if (!seen.has(question.key)) {
+      questions.push(question);
+      seen.add(question.key);
+    }
+  }
+
+  for (const roleKey of uniqueRoleKeys) {
+    if (roleKey === CONSULENTE_ROLE_KEY) continue;
     for (const question of roleQuestions[roleKey] ?? []) {
       if (!seen.has(question.key)) {
         questions.push(question);

@@ -4,6 +4,7 @@ import { CAMPAIGN_KEY } from "@/lib/surveyConfig";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type SurveyResponseForExport = {
+  role_label?: string | null;
   role_labels?: string[] | null;
   identified?: boolean | null;
   name?: string | null;
@@ -40,6 +41,13 @@ function normalizeSurveyResponse(
   return value;
 }
 
+function normalizeRoleLabels(response: SurveyResponseForExport | null): string[] {
+  const labels = response?.role_labels?.filter(Boolean) ?? [];
+  if (labels.length > 0) return labels;
+  if (response?.role_label) return [response.role_label];
+  return [];
+}
+
 export async function GET(request: Request) {
   const authorized = validateAdminTokenFromUrl(request);
   if (authorized !== true) return authorized;
@@ -47,7 +55,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabaseAdmin
     .from("survey_answers")
     .select(
-      "question_key, question_label, question_type, selected_options, comment, created_at, survey_responses!inner(role_labels, identified, name, whatsapp, allow_contact, submitted_at, campaign_key)",
+      "question_key, question_label, question_type, selected_options, comment, created_at, survey_responses!inner(role_label, role_labels, identified, name, whatsapp, allow_contact, submitted_at, campaign_key)",
     )
     .eq("survey_responses.campaign_key", CAMPAIGN_KEY)
     .order("created_at", { ascending: false });
@@ -76,7 +84,7 @@ export async function GET(request: Request) {
 
     return [
       response?.submitted_at,
-      response?.role_labels ?? [],
+      normalizeRoleLabels(response),
       response?.identified ? "sim" : "nao",
       response?.name,
       response?.whatsapp,

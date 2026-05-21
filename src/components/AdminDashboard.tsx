@@ -74,6 +74,7 @@ export function AdminDashboard() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState("todos");
+  const [showConsulenteTools, setShowConsulenteTools] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -138,9 +139,29 @@ export function AdminDashboard() {
         </div>
       </div>
 
-      <div className="mt-6">
-        <ConsulenteShareTools />
-      </div>
+      <section className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-800">Divulgação</p>
+            <h2 className="mt-1 text-xl font-black text-slate-950">Pesquisa consulente</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+              Abra as opções para copiar o link da pesquisa, copiar a mensagem de divulgação, visualizar o QR Code ou imprimir o cartaz para recepção/saída dos trabalhos.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowConsulenteTools((current) => !current)}
+            className="w-fit rounded-2xl bg-amber-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-300"
+          >
+            {showConsulenteTools ? "Ocultar opções" : "Abrir opções de link e QR Code"}
+          </button>
+        </div>
+        {showConsulenteTools ? (
+          <div className="mt-5">
+            <ConsulenteShareTools />
+          </div>
+        ) : null}
+      </section>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <MetricCard label="Total de respostas" value={data.totalResponses} />
