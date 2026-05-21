@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { ConsulenteShareTools } from "@/components/ConsulenteShareTools";
 
 type CountItem = {
   label: string;
@@ -135,6 +136,10 @@ export function AdminDashboard() {
             Exportar CSV
           </a>
         </div>
+      </div>
+
+      <div className="mt-6">
+        <ConsulenteShareTools />
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
