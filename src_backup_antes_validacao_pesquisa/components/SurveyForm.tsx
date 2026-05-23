@@ -7,22 +7,13 @@ import {
   getQuestionsForRoles,
   getRoleLabel,
   roles,
-  type SurveyQuestion,
 } from "@/lib/surveyConfig";
 import { QuestionCard, type AnswerDraft } from "@/components/QuestionCard";
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
-type IdentificationChoice = "anonymous" | "identified" | null;
 
 type SurveyFormProps = {
   mode?: "internal" | "consulente";
-};
-
-type ValidationResult = {
-  ok: boolean;
-  message?: string;
-  questionKey?: string;
-  targetId?: string;
 };
 
 function scrollToElement(id: string) {
@@ -31,47 +22,20 @@ function scrollToElement(id: string) {
   }, 50);
 }
 
-function needsComment(answer: AnswerDraft): boolean {
-  return answer.selectedOptions.some((option) => {
-    const normalized = option.trim().toLowerCase();
-    return normalized === "outro" || normalized.includes("prefiro explicar");
-  });
-}
-
-function validateQuestionAnswer(question: SurveyQuestion, answer: AnswerDraft): string | null {
-  const selectedCount = answer.selectedOptions.length;
-
-  if (question.required && selectedCount === 0) {
-    return "Responda esta pergunta para continuar.";
-  }
-
-  if (question.type === "single" && selectedCount > 1) {
-    return "Esta pergunta permite apenas uma opção.";
-  }
-
-  if (needsComment(answer) && answer.comment.trim().length < 10) {
-    return "Ao marcar 'Outro' ou 'prefiro explicar', escreva um comentário com pelo menos 10 caracteres.";
-  }
-
-  return null;
-}
-
 export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
   const router = useRouter();
   const isConsulenteMode = mode === "consulente";
   const initialRoles = isConsulenteMode ? [CONSULENTE_ROLE_KEY] : [];
   const [selectedRoles, setSelectedRoles] = useState<string[]>(initialRoles);
-  const [identificationChoice, setIdentificationChoice] = useState<IdentificationChoice>(null);
+  const [identified, setIdentified] = useState(false);
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [allowContact, setAllowContact] = useState(false);
   const [answers, setAnswers] = useState<Record<string, AnswerDraft>>({});
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [missingQuestionKey, setMissingQuestionKey] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
-
-  const identified = identificationChoice === "identified";
 
   const availableRoles = useMemo(() => {
     if (isConsulenteMode) {
@@ -82,15 +46,6 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
 
   const questions = useMemo(() => getQuestionsForRoles(selectedRoles), [selectedRoles]);
 
-  function clearFieldError(key: string) {
-    setFieldErrors((current) => {
-      if (!current[key]) return current;
-      const next = { ...current };
-      delete next[key];
-      return next;
-    });
-  }
-
   function toggleRole(roleKey: string) {
     if (isConsulenteMode) return;
     setSelectedRoles((current) => {
@@ -99,7 +54,7 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
       }
       return [...current, roleKey];
     });
-    clearFieldError("roles");
+    setMissingQuestionKey(null);
     setErrorMessage("");
   }
 
@@ -118,89 +73,46 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
 
   function updateAnswer(next: AnswerDraft) {
     setAnswers((current) => ({ ...current, [next.questionKey]: next }));
-
-    const question = questions.find((item) => item.key === next.questionKey);
-    if (question && !validateQuestionAnswer(question, next)) {
-      clearFieldError(`question-${next.questionKey}`);
+    if (missingQuestionKey === next.questionKey && next.selectedOptions.length > 0) {
+      setMissingQuestionKey(null);
       setErrorMessage("");
     }
   }
 
-  function chooseIdentification(choice: Exclude<IdentificationChoice, null>) {
-    setIdentificationChoice(choice);
-    clearFieldError("identification");
+  function validateBeforeSubmit(): boolean {
     setErrorMessage("");
-  }
-
-  function validateBeforeSubmit(): ValidationResult {
-    const nextErrors: Record<string, string> = {};
+    setMissingQuestionKey(null);
 
     if (selectedRoles.length === 0) {
-      nextErrors.roles = "Selecione pelo menos uma função/papel no TUCXA.";
-      setFieldErrors(nextErrors);
-      return {
-        ok: false,
-        message: "Selecione pelo menos uma função/papel no TUCXA.",
-        targetId: "survey-role-section",
-      };
+      setErrorMessage("Selecione pelo menos uma função/papel no TUCXA.");
+      scrollToElement("survey-role-section");
+      return false;
     }
 
-    if (!identificationChoice) {
-      nextErrors.identification = "Marque se deseja se identificar ou responder de forma anônima.";
-      setFieldErrors(nextErrors);
-      return {
-        ok: false,
-        message: "Marque se deseja se identificar ou responder de forma anônima.",
-        targetId: "survey-identification-section",
-      };
+    if (identified && !name.trim()) {
+      setErrorMessage("Informe seu nome ou escolha responder de forma anônima.");
+      window.setTimeout(() => nameInputRef.current?.focus(), 50);
+      return false;
     }
 
-    if (identified && name.trim().length < 2) {
-      nextErrors.identification = "Informe seu nome com pelo menos 2 caracteres ou escolha responder de forma anônima.";
-      setFieldErrors(nextErrors);
-      return {
-        ok: false,
-        message: "Informe seu nome com pelo menos 2 caracteres ou escolha responder de forma anônima.",
-        targetId: "survey-identification-section",
-      };
+    const missing = questions.find((question) => {
+      if (!question.required) return false;
+      return getAnswer(question.key).selectedOptions.length === 0;
+    });
+
+    if (missing) {
+      setMissingQuestionKey(missing.key);
+      setErrorMessage(`Responda a pergunta obrigatória: ${missing.label}`);
+      scrollToElement(`question-${missing.key}`);
+      return false;
     }
 
-    for (const question of questions) {
-      const answer = getAnswer(question.key);
-      const questionError = validateQuestionAnswer(question, answer);
-
-      if (questionError) {
-        nextErrors[`question-${question.key}`] = questionError;
-        setFieldErrors(nextErrors);
-        return {
-          ok: false,
-          message: `${questionError} Pergunta: ${question.label}`,
-          questionKey: question.key,
-          targetId: `question-${question.key}`,
-        };
-      }
-    }
-
-    setFieldErrors({});
-    return { ok: true };
+    return true;
   }
 
   async function submitSurvey() {
     if (status === "submitting") return;
-
-    setErrorMessage("");
-    const validation = validateBeforeSubmit();
-
-    if (!validation.ok) {
-      setErrorMessage(validation.message ?? "Revise os campos obrigatórios antes de enviar.");
-      if (validation.targetId) {
-        scrollToElement(validation.targetId);
-      }
-      if (validation.targetId === "survey-identification-section" && identified && name.trim().length < 2) {
-        window.setTimeout(() => nameInputRef.current?.focus(), 120);
-      }
-      return;
-    }
+    if (!validateBeforeSubmit()) return;
 
     setStatus("submitting");
 
@@ -208,12 +120,11 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        identificationChoice,
-        identified,
         roleKeys: selectedRoles,
         roleLabels: selectedRoles.map(getRoleLabel),
         roleKey: selectedRoles[0] ?? CONSULENTE_ROLE_KEY,
         roleLabel: getRoleLabel(selectedRoles[0] ?? CONSULENTE_ROLE_KEY),
+        identified,
         name,
         whatsapp,
         allowContact,
@@ -255,17 +166,12 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
         <h2 className="text-lg font-bold">Como responder</h2>
         <p className="mt-2 text-sm leading-6">
           {isConsulenteMode
-            ? "Responda pensando apenas na sua experiência como consulente ou visitante: chegada, orientação, acolhimento, espera e clareza do processo. Todas as perguntas precisam ser respondidas, e os comentários são opcionais, exceto quando você marcar 'Outro' ou 'prefiro explicar'."
+            ? "Responda pensando apenas na sua experiência como consulente ou visitante: chegada, orientação, acolhimento, espera e clareza do processo. Todas as perguntas precisam ser respondidas, e os comentários são opcionais."
             : "Primeiro selecione sua função/papel. Como a mesma pessoa pode ter mais de uma função, marque todas as opções que representam sua realidade. Depois, o sistema mostrará as perguntas comuns e também as perguntas específicas das funções escolhidas."}
         </p>
       </div>
 
-      <section
-        id="survey-role-section"
-        className={`mt-6 rounded-3xl border bg-white p-5 shadow-sm ${
-          fieldErrors.roles ? "border-red-300 ring-4 ring-red-50" : "border-slate-200"
-        }`}
-      >
+      <section id="survey-role-section" className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-700">Etapa 1</p>
@@ -282,12 +188,6 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
             {isConsulenteMode ? "Público específico" : "Múltipla escolha"}
           </span>
         </div>
-
-        {fieldErrors.roles ? (
-          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-            {fieldErrors.roles}
-          </div>
-        ) : null}
 
         {isConsulenteMode ? (
           <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4">
@@ -326,50 +226,32 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
         )}
       </section>
 
-      <section
-        id="survey-identification-section"
-        className={`mt-6 rounded-3xl border bg-white p-5 shadow-sm ${
-          fieldErrors.identification ? "border-red-300 ring-4 ring-red-50" : "border-slate-200"
-        }`}
-      >
+      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-700">Etapa 2</p>
         <h2 className="mt-1 text-xl font-bold text-slate-950">Identificação opcional</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Marque uma opção para informar se deseja se identificar ou responder anonimamente. A identificação serve apenas se a diretoria/coordenação precisar entender melhor alguma sugestão.
+          Você pode se identificar ou responder anonimamente. A identificação serve apenas se a
+          diretoria/coordenação precisar entender melhor alguma sugestão.
         </p>
 
-        {fieldErrors.identification ? (
-          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-            {fieldErrors.identification}
-          </div>
-        ) : null}
-
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label
-            className={`cursor-pointer rounded-2xl border p-4 ${
-              identificationChoice === "anonymous" ? "border-amber-400 bg-amber-50" : "border-slate-200"
-            }`}
-          >
+          <label className={`cursor-pointer rounded-2xl border p-4 ${!identified ? "border-amber-400 bg-amber-50" : "border-slate-200"}`}>
             <input
               className="mr-2 accent-amber-700"
               type="radio"
               name="identified"
-              checked={identificationChoice === "anonymous"}
-              onChange={() => chooseIdentification("anonymous")}
+              checked={!identified}
+              onChange={() => setIdentified(false)}
             />
             Responder de forma anônima
           </label>
-          <label
-            className={`cursor-pointer rounded-2xl border p-4 ${
-              identificationChoice === "identified" ? "border-amber-400 bg-amber-50" : "border-slate-200"
-            }`}
-          >
+          <label className={`cursor-pointer rounded-2xl border p-4 ${identified ? "border-amber-400 bg-amber-50" : "border-slate-200"}`}>
             <input
               className="mr-2 accent-amber-700"
               type="radio"
               name="identified"
-              checked={identificationChoice === "identified"}
-              onChange={() => chooseIdentification("identified")}
+              checked={identified}
+              onChange={() => setIdentified(true)}
             />
             Quero me identificar
           </label>
@@ -379,19 +261,14 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
               <label className="text-sm font-semibold text-slate-700" htmlFor="name">
-                Nome <span className="text-red-600">*</span>
+                Nome
               </label>
               <input
                 ref={nameInputRef}
                 id="name"
-                className={`mt-2 w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100 ${
-                  fieldErrors.identification && name.trim().length < 2 ? "border-red-300" : "border-slate-200"
-                }`}
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
                 value={name}
-                onChange={(event) => {
-                  setName(event.target.value);
-                  if (event.target.value.trim().length >= 2) clearFieldError("identification");
-                }}
+                onChange={(event) => setName(event.target.value)}
               />
             </div>
             <div>
@@ -425,7 +302,7 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
             <h2 className="mt-1 text-xl font-bold text-slate-950">Perguntas da pesquisa</h2>
             <p className="mt-1 text-sm text-slate-600">
               {isConsulenteMode ? (
-                "Todas as perguntas abaixo precisam ser respondidas. Os comentários são opcionais, exceto quando você marcar 'Outro' ou 'prefiro explicar', e não devem expor assuntos pessoais ou espirituais sensíveis."
+                "Todas as perguntas abaixo precisam ser respondidas. Os comentários são opcionais e não devem expor assuntos pessoais ou espirituais sensíveis."
               ) : (
                 <>
                   As perguntas abaixo combinam uma base comum para todos com perguntas específicas para: <strong>{selectedRoleLabels}</strong>.
@@ -441,7 +318,7 @@ export function SurveyForm({ mode = "internal" }: SurveyFormProps) {
               question={question}
               value={getAnswer(question.key)}
               onChange={updateAnswer}
-              error={fieldErrors[`question-${question.key}`]}
+              error={missingQuestionKey === question.key ? "Responda esta pergunta para continuar." : undefined}
             />
           ))}
         </div>

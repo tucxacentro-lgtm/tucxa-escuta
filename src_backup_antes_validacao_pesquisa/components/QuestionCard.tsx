@@ -18,16 +18,7 @@ type QuestionCardProps = {
   error?: string;
 };
 
-function selectionRequiresComment(selectedOptions: string[]): boolean {
-  return selectedOptions.some((option) => {
-    const normalized = option.trim().toLowerCase();
-    return normalized === "outro" || normalized.includes("prefiro explicar");
-  });
-}
-
 export function QuestionCard({ question, value, onChange, index, error }: QuestionCardProps) {
-  const requiresComment = selectionRequiresComment(value.selectedOptions);
-
   function toggleOption(optionValue: string) {
     if (question.type === "single") {
       onChange({ ...value, selectedOptions: [optionValue] });
@@ -96,26 +87,15 @@ export function QuestionCard({ question, value, onChange, index, error }: Questi
       {question.allowComment ? (
         <div className="mt-4">
           <label className="text-sm font-semibold text-slate-700" htmlFor={`${question.key}-comment`}>
-            {requiresComment ? "Comentário obrigatório" : "Comentário opcional"}
+            Comentário opcional
           </label>
           <textarea
             id={`${question.key}-comment`}
-            className={`mt-2 min-h-20 w-full rounded-2xl border bg-white px-4 py-3 text-sm outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-100 ${
-              error && requiresComment && value.comment.trim().length < 10 ? "border-red-300" : "border-slate-200"
-            }`}
-            placeholder={
-              requiresComment
-                ? "Explique brevemente sua resposta com pelo menos 10 caracteres. Não exponha assuntos pessoais ou espirituais sensíveis."
-                : "Use este espaço se quiser explicar melhor sua resposta, sem expor assuntos pessoais ou espirituais sensíveis."
-            }
+            className="mt-2 min-h-20 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+            placeholder="Use este espaço se quiser explicar melhor sua resposta, sem expor assuntos pessoais ou espirituais sensíveis."
             value={value.comment}
             onChange={(event) => onChange({ ...value, comment: event.target.value })}
           />
-          {requiresComment ? (
-            <p className="mt-2 text-xs font-semibold text-slate-500">
-              Obrigatório quando você marca “Outro” ou “prefiro explicar”. Mínimo: 10 caracteres.
-            </p>
-          ) : null}
         </div>
       ) : null}
     </section>
