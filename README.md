@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Escuta TUCXA
 
-## Getting Started
+Sistema institucional de pesquisas do TUCXA para coletar percepções, dúvidas e sugestões sobre acolhimento, comunicação, organização, eventos e processos da casa.
 
-First, run the development server:
+## Segurança e privacidade
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+O sistema:
+
+- não solicita senhas pessoais;
+- não solicita cartão de crédito;
+- não solicita dados bancários;
+- não realiza pagamentos;
+- não oferece download de programas;
+- permite identificação opcional nas pesquisas.
+
+A página `/privacidade` explica a finalidade da coleta e os cuidados recomendados ao responder.
+
+## Variáveis de ambiente
+
+Crie `.env.local` com base em `.env.local.example`.
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=SUA_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY=SUA_SERVICE_ROLE_KEY
+ADMIN_SURVEY_TOKEN=SEU_TOKEN_GRANDE_E_SEGURO
+NEXT_PUBLIC_SITE_URL=https://tucxa-escuta.vercel.app
+NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Google Search Console
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Para domínio `vercel.app`, prefira adicionar uma propriedade do tipo **URL-prefix** com:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```txt
+https://tucxa-escuta.vercel.app
+```
 
-## Learn More
+Depois escolha a verificação por **HTML tag**, copie apenas o valor de `content="..."` e configure em:
 
-To learn more about Next.js, take a look at the following resources:
+```env
+NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=valor_copiado_do_content
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Faça novo deploy na Vercel e clique em **Verificar** no Search Console.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+npm run build
+npm run dev
+```
